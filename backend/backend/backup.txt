@@ -1,0 +1,183 @@
+##keby nahodov tu je backup
+
+# from flask import Flask, request, jsonify, app
+# import requests
+# from flask_cors import CORS
+#
+# # Zabezpečenie UTF-8 pre celé prostredie
+#
+#
+# app = Flask(__name__)
+# CORS(app)  # Povolenie CORS pre komunikáciu s frontendom
+#
+# API_KEY = "4b0ab535a10d6f6b8caef02a6ebd5810"
+#
+# # Funkcia na kontrolu extrémneho počasia
+# def check_extreme_weather(data):
+#     alerts = []
+#     temperature = data["main"]["temp"]
+#     wind_speed = data["wind"]["speed"]
+#     description = data["weather"][0]["description"].lower()
+#
+#     if temperature < -10:
+#         alerts.append("Veľmi nízke teploty! Dbajte na vhodné oblečenie a zostaňte v teple.")
+#     elif temperature > 35:
+#         alerts.append("Veľmi vysoké teploty! Hydratujte sa a obmedzte fyzickú aktivitu.")
+#
+#     if wind_speed > 20:
+#         alerts.append("Silný vietor! Dbajte na opatrnosť a vyhnite sa vonkajším aktivitám.")
+#
+#     if "storm" in description:
+#         alerts.append("Búrka na obzore! Sledujte výstrahy a zostaňte v bezpečí.")
+#
+#     if "snow" in description:
+#         alerts.append("Husté sneženie! Počítajte so sťaženými podmienkami na cestách.")
+#
+#     if "rain" in description:
+#         alerts.append("Silný dážď! Dbajte na opatrnosť pri pohybe vonku.")
+#
+#     return alerts
+#
+# @app.route('/')
+# def home():
+#     return "Welcome to SkyCheck API!"
+#
+# # Endpoint pre aktuálne počasie (podľa mesta alebo GPS)
+# @app.route('/api/weather', methods=['GET'])
+# def get_weather():
+#     city = request.args.get('city')
+#     lat = request.args.get('lat')
+#     lon = request.args.get('lon')
+#
+#     if not city and (not lat or not lon):
+#         return jsonify({"error": "Zadajte názov mesta alebo GPS súradnice"}), 400
+#
+#     if city:
+#         params = {"q": city, "appid": API_KEY, "units": "metric"}
+#     else:
+#         params = {"lat": lat, "lon": lon, "appid": API_KEY, "units": "metric"}
+#
+#     url = "http://api.openweathermap.org/data/2.5/weather"
+#
+#     try:
+#         response = requests.get(url, params=params)
+#         data = response.json()
+#
+#         if response.status_code != 200:
+#             return jsonify({"error": data.get("message", "Chyba pri získavaní počasia")}), response.status_code
+#
+#         alerts = check_extreme_weather(data)
+#
+#         simplified_data = {
+#             "city": data.get("name"),
+#             "country": data["sys"].get("country"),
+#             "temperature": data["main"]["temp"],
+#             "description": data["weather"][0]["description"],
+#             "icon": data["weather"][0]["icon"],
+#             "wind_speed": data["wind"].get("speed"),
+#             "humidity": data["main"]["humidity"],
+#             "alerts": alerts
+#         }
+#         return jsonify(simplified_data)
+#
+#     except Exception as e:
+#         return jsonify({"error": "Chyba pri pripojení k OpenWeather API"}), 500
+#
+# # Endpoint pre 5-dňovú predpoveď počasia
+# @app.route('/api/forecast', methods=['GET'])
+# def get_forecast():
+#     city = request.args.get('city')
+#     if not city:
+#         return jsonify({"error": "Zadajte názov mesta"}), 400
+#
+#     url = f"http://api.openweathermap.org/data/2.5/forecast"
+#     params = {"q": city, "appid": API_KEY, "units": "metric"}
+#
+#     try:
+#         response = requests.get(url, params=params)
+#         data = response.json()
+#
+#         if response.status_code != 200:
+#             return jsonify({"error": data.get("message", "Chyba pri získavaní predpovede")}), response.status_code
+#
+#         forecast_data = [
+#             {
+#                 "city": data["city"]["name"],
+#                 "country": data["city"]["country"],
+#                 "description": item["weather"][0]["description"],
+#                 "humidity": item["main"]["humidity"],
+#                 "icon": item["weather"][0]["icon"],
+#                 "temperature": item["main"]["temp"],
+#                 "wind_speed": item["wind"]["speed"]
+#             }
+#             for index, item in enumerate(data["list"]) if index % 5 == 0  # Každý 5. záznam
+#         ]
+#
+#         return jsonify({"city": data["city"]["name"], "forecast": forecast_data})
+#
+#     except Exception as e:
+#         return jsonify({"error": "Chyba pri pripojení k OpenWeather API"}), 500
+#
+# # Endpoint pre vyhľadávanie miest
+# @app.route('/api/search', methods=['GET'])
+# def search_city():
+#     query = request.args.get('query')
+#     if not query:
+#         return jsonify({"error": "Zadajte hľadaný výraz"}), 400
+#
+#     url = f"http://api.openweathermap.org/geo/1.0/direct"
+#     params = {"q": query, "appid": API_KEY}
+#
+#     try:
+#         response = requests.get(url, params=params)
+#         data = response.json()
+#
+#         if not data:
+#             return jsonify({"error": "Mesto nenájdené"}), 404
+#
+#         cities = [
+#             {"name": item["name"], "country": item["country"], "lat": item["lat"], "lon": item["lon"]}
+#             for item in data
+#         ]
+#
+#         return jsonify(cities)
+#
+#     except Exception as e:
+#         return jsonify({"error": "Chyba pri pripojení k OpenWeather API"}), 500
+#
+# @app.route('/api/favorites', methods=['GET'])
+# def get_favorites_weather():
+#     cities = request.args.getlist('cities')  # Zoznam miest
+#     if not cities:
+#         return jsonify({"error": "Zadajte aspoň jedno mesto"}), 400
+#
+#     results = []
+#     url = "http://api.openweathermap.org/data/2.5/weather"
+#
+#     for city in cities:
+#         params = {"q": city, "appid": API_KEY, "units": "metric"}
+#         try:
+#             response = requests.get(url, params=params)
+#             data = response.json()
+#
+#             if response.status_code == 200:
+#                 simplified_data = {
+#                     "city": data.get("name"),
+#                     "country": data["sys"].get("country"),
+#                     "temperature": data["main"]["temp"],
+#                     "description": data["weather"][0]["description"],
+#                     "icon": data["weather"][0]["icon"],
+#                     "wind_speed": data["wind"].get("speed"),
+#                     "humidity": data["main"].get("humidity"),
+#                 }
+#                 results.append(simplified_data)
+#             else:
+#                 results.append({"city": city, "error": data.get("message", "Neznáma chyba")})
+#         except Exception as e:
+#             results.append({"city": city, "error": "Chyba pri pripojení k OpenWeather API"})
+#
+#     return jsonify({"favorites": results})
+#
+#
+# if __name__ == '__main__':
+#     app.run(debug=True)
