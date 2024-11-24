@@ -1,0 +1,21 @@
+.logo {
+    padding: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.logo img {
+    width: 20%;
+    max-width: 20vh;
+    height: auto;
+    filter: drop-shadow(0px 4px 8px #000);
+}
+
+#logo-heading {
+    font-size: 3em;
+    text-transform: uppercase;
+    filter: drop-shadow(4px 4px 8px #000000);
+}

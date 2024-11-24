@@ -5,7 +5,7 @@ import Text from './Text.jsx'
 function Upload() {
   return (
     <div className={"search"}>
-      <Form type={"file"} text={"Uploadni súbor"} action={""}></Form>
+      <Form type={"file"} text={"Uploadni dataset"} action={""}></Form>
     </div>
   )
 }

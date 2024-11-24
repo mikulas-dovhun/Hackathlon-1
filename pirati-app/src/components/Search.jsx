@@ -6,7 +6,7 @@ import {useState} from "react";
 function Search() {
   return (
     <div className={"search"}>
-      <Form type={"text"} text={"Hľadaj"} action={""}></Form>
+      <Form type={"text"} text={"Hľadaj"}></Form>
     </div>
   )
 }

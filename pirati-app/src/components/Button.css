@@ -1,0 +1,30 @@
+.button {
+    width: max-content;
+    min-width: 200px;
+    text-align: center;
+    padding: 1.4em 0.6em;
+    background-color: rgba(72, 49, 157, 0.3);
+    border-radius: 4em;
+    border: 4px solid rgba(72, 49, 157, 0.2);
+    box-shadow: 0px 4px 16px 0 rgba(72, 49, 157, 0.3);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    transition: all 0.3s ease-in-out;
+}
+
+.button:hover {
+    background-color: rgba(72, 49, 157, 1);
+    cursor: pointer;
+}
+
+.button:hover > * {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+.button > * {
+    color: #ffffff;
+    text-transform: uppercase;
+    border: none;
+    background: none;
+}

@@ -1,0 +1,11 @@
+.menu {
+    display: flex;
+    flex-display: row;
+    gap: 2em;
+}
+
+@media (max-width: 500px) {
+    .menu {
+        flex-direction: column;
+    }
+}

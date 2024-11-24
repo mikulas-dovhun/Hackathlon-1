@@ -1,4 +1,5 @@
 import {useState} from "react";
+import './Input.css'
 
 function Input({value, setValue, type}) {
   const handleChange = (e) => {
