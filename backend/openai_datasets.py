@@ -3,6 +3,8 @@ import pandas as pd
 import os
 from loguru import logger
 import openai
+import matplotlib
+matplotlib.use('Agg')  # Use a thread-safe backend
 import matplotlib.pyplot as plt
 
 # Set OpenAI API key
@@ -36,13 +38,17 @@ def set_white_theme(ax):
 # Helper function to save plots with transparent background
 def save_plot_to_file(filename):
     """
-    Save the current matplotlib plot to a file with a transparent background.
+    Save the current matplotlib plot to a file with a transparent background and release resources.
     """
     output_directory = './generated_graphs'
     os.makedirs(output_directory, exist_ok=True)
     file_path = os.path.join(output_directory, filename)
-    plt.savefig(file_path, format='png', bbox_inches='tight', transparent=True)
-    plt.close()
+    try:
+        plt.savefig(file_path, format='png', bbox_inches='tight', transparent=True)
+    except Exception as e:
+        logger.error(f"Error saving plot {filename}: {e}")
+    finally:
+        plt.close('all')  # Ensure all figures are closed
     return file_path
 
 # Fetch region file and country folder for a city
@@ -125,8 +131,17 @@ def weather_query():
         # Prepare the data
         city_data['Date'] = pd.to_datetime(city_data['Date'], format='%d.%m.%Y')
         city_data.rename(columns={'Temperature (�C)': 'Temperature (°C)'}, inplace=True)
-        filtered_data = city_data.tail(28)  # Last 4 weeks
 
+        required_columns = ['Temperature (°C)', 'Humidity (%)', 'Wind Direction', 'Date']
+        missing_columns = [col for col in required_columns if col not in city_data.columns]
+
+        if missing_columns:
+            return jsonify({
+                "response": f"The dataset is missing required columns: {', '.join(missing_columns)}.",
+                "available": False
+            })
+
+        filtered_data = city_data.tail(28)  # Last 4 weeks
         if filtered_data.empty:
             return jsonify({"response": f"No recent data found for {city}.", "available": False})
 
@@ -161,11 +176,10 @@ def weather_query():
         plt.title(f'Wind Directions in {city}', color='white')
         graph_images['wind_directions'] = save_plot_to_file(f"{city}_wind_directions.png")
 
-        # 4. Custom Trend (e.g., Pressure)
-        plt.figure(figsize=(10, 6))
-        ax = plt.gca()
-        # Assuming a "Pressure" column exists
+        # 4. Pressure Trend (Optional)
         if 'Pressure (hPa)' in filtered_data.columns:
+            plt.figure(figsize=(10, 6))
+            ax = plt.gca()
             plt.plot(filtered_data['Date'], filtered_data['Pressure (hPa)'], marker='o', color='green', linewidth=2)
             plt.title(f'Pressure Trend in {city} (Last 4 Weeks)')
             plt.xlabel('Date')
