@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from loguru import logger
 import openai
+import matplotlib.pyplot as plt
 
 # Set OpenAI API key
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -16,22 +17,47 @@ STATY_FILE = os.path.join(DATASETS_PATH, 'Staty.csv')
 # Create Blueprint
 weatherquery_api = Blueprint('weatherquery_api', __name__)
 
+# Helper function to set white elements in graphs
+def set_white_theme(ax):
+    """
+    Customize the plot to have white grid, ticks, spines, and outlines.
+    """
+    ax.spines['top'].set_color('white')
+    ax.spines['right'].set_color('white')
+    ax.spines['bottom'].set_color('white')
+    ax.spines['left'].set_color('white')
+    ax.tick_params(axis='x', colors='white')
+    ax.tick_params(axis='y', colors='white')
+    ax.yaxis.label.set_color('white')
+    ax.xaxis.label.set_color('white')
+    ax.title.set_color('white')
+    ax.grid(color='white', linestyle='--', linewidth=0.5)  # Dashed white grid lines
 
+# Helper function to save plots with transparent background
+def save_plot_to_file(filename):
+    """
+    Save the current matplotlib plot to a file with a transparent background.
+    """
+    output_directory = './generated_graphs'
+    os.makedirs(output_directory, exist_ok=True)
+    file_path = os.path.join(output_directory, filename)
+    plt.savefig(file_path, format='png', bbox_inches='tight', transparent=True)
+    plt.close()
+    return file_path
+
+# Fetch region file and country folder for a city
 def get_file_and_country_for_city(city):
-    """
-    Load the region file and country folder for a given city from Staty.csv.
-    """
     logger.info(f"Looking for region and country for city: {city}")
     if not os.path.exists(STATY_FILE):
         logger.error(f"File {STATY_FILE} does not exist!")
         return None, None, f"CSV file with city, region, and country data '{STATY_FILE}' does not exist."
 
     try:
-        # Read the Staty.csv file
         df = pd.read_csv(STATY_FILE, delimiter=';', encoding='utf-8')
-        city_row = df[df['City'].str.lower() == city.lower()]  # Case-insensitive match
+        city_row = df[df['City'].str.lower() == city.lower()]
         if city_row.empty:
             return None, None, f"City '{city}' not found in Staty.csv."
+
         region_file = city_row['Region'].iloc[0] + ".csv"
         country_folder = city_row['Country'].iloc[0]
         return region_file, country_folder, None
@@ -39,12 +65,11 @@ def get_file_and_country_for_city(city):
         logger.error(f"Error processing file '{STATY_FILE}': {e}")
         return None, None, f"Error reading data from '{STATY_FILE}': {e}"
 
-
+# Fetch city data from region file
 def get_city_data(city, region_file, country_folder):
-    """
-    Load data for a specific city from the appropriate region CSV file.
-    """
     csv_path = os.path.join(DATASETS_PATH, country_folder, region_file)
+    logger.info(f"Looking for file: {csv_path}")
+
     if not os.path.exists(csv_path):
         return None, f"CSV file '{region_file}' does not exist."
 
@@ -58,72 +83,117 @@ def get_city_data(city, region_file, country_folder):
         logger.error(f"Error processing file '{csv_path}': {e}")
         return None, f"Error reading data from '{csv_path}': {e}"
 
-
+# Main weather query endpoint
 @weatherquery_api.route('/weatherquery', methods=['POST'])
 def weather_query():
     """
-    Handle user query and fetch data from the relevant CSV file, with support for comparisons.
+    Handle user query, fetch data from the relevant CSV file, process data, and generate graphs.
     """
     user_message = request.json.get('message')
     if not user_message:
         return jsonify({"error": "Message is required"}), 400
 
     try:
-        # Use OpenAI to extract cities or regions involved
-        openai_prompt = f"Extract the cities or regions mentioned in the following question: '{user_message}'. Provide a list of names separated by commas."
+        # Extract city name using OpenAI
+        openai_prompt = f"Extract the city name from the following question: '{user_message}'. Please respond only with the city name."
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that extracts city or region names from text."},
+                {"role": "system", "content": "You are a helpful assistant that extracts city names from text."},
                 {"role": "user", "content": openai_prompt}
             ],
-            max_tokens=100,
+            max_tokens=50,
             temperature=0
         )
-        locations = response['choices'][0]['message']['content'].strip().split(',')
+        city = response['choices'][0]['message']['content'].strip()
 
-        if not locations or len(locations) == 0:
-            return jsonify({"response": "Could not identify locations from the question.", "available": False})
+        if not city:
+            return jsonify({"response": "Could not identify the city from the question.", "available": False})
 
-        logger.info(f"Identified locations: {locations}")
+        logger.info(f"Identified city: {city}")
 
-        # Process data for each location
-        comparison_results = {}
-        for location in locations:
-            location = location.strip()
-            region_file, country_folder, error = get_file_and_country_for_city(location)
-            if error:
-                comparison_results[location] = {"error": error}
-                continue
+        # Fetch the region file and country folder
+        region_file, country_folder, error = get_file_and_country_for_city(city)
+        if error:
+            return jsonify({"response": error, "available": False})
 
-            city_data, error = get_city_data(location, region_file, country_folder)
-            if error:
-                comparison_results[location] = {"error": error}
-                continue
+        # Fetch the city data
+        city_data, error = get_city_data(city, region_file, country_folder)
+        if error:
+            return jsonify({"response": error, "available": False})
 
-            # Process city data (e.g., min, max, mean temperatures)
-            temp_min = city_data['Temperature (°C)'].min()
-            temp_max = city_data['Temperature (°C)'].max()
-            temp_mean = city_data['Temperature (°C)'].mean()
+        # Prepare the data
+        city_data['Date'] = pd.to_datetime(city_data['Date'], format='%d.%m.%Y')
+        city_data.rename(columns={'Temperature (�C)': 'Temperature (°C)'}, inplace=True)
+        filtered_data = city_data.tail(28)  # Last 4 weeks
 
-            comparison_results[location] = {
-                "min_temp": temp_min,
-                "max_temp": temp_max,
-                "mean_temp": temp_mean
-            }
+        if filtered_data.empty:
+            return jsonify({"response": f"No recent data found for {city}.", "available": False})
 
-        # Prepare results for comparison
-        if len(comparison_results) > 1:
-            comparison_summary = f"Comparison results:\n"
-            for location, data in comparison_results.items():
-                if "error" in data:
-                    comparison_summary += f"{location}: {data['error']}\n"
-                else:
-                    comparison_summary += f"{location}: Min Temp = {data['min_temp']}°C, Max Temp = {data['max_temp']}°C, Avg Temp = {data['mean_temp']}°C\n"
-        else:
-            comparison_summary = f"Data for {locations[0]}: {comparison_results[locations[0]]}"
+        # Generate graphs
+        graph_images = {}
 
-        return jsonify({"response": comparison_summary, "available": True})
+        # 1. Temperature Trend
+        plt.figure(figsize=(10, 6))
+        ax = plt.gca()
+        plt.plot(filtered_data['Date'], filtered_data['Temperature (°C)'], marker='o', color='blue', linewidth=2)
+        plt.title(f'Temperature Trend in {city} (Last 4 Weeks)')
+        plt.xlabel('Date')
+        plt.ylabel('Temperature (°C)')
+        set_white_theme(ax)
+        graph_images['temperature_trend'] = save_plot_to_file(f"{city}_temperature_trend.png")
+
+        # 2. Humidity Trend
+        plt.figure(figsize=(10, 6))
+        ax = plt.gca()
+        plt.plot(filtered_data['Date'], filtered_data['Humidity (%)'], marker='o', color='orange', linewidth=2)
+        plt.title(f'Humidity Trend in {city} (Last 4 Weeks)')
+        plt.xlabel('Date')
+        plt.ylabel('Humidity (%)')
+        set_white_theme(ax)
+        graph_images['humidity_trend'] = save_plot_to_file(f"{city}_humidity_trend.png")
+
+        # 3. Wind Direction Pie Chart
+        plt.figure(figsize=(8, 8))
+        wind_directions = filtered_data['Wind Direction'].value_counts()
+        plt.pie(wind_directions, labels=wind_directions.index, autopct='%1.1f%%', startangle=140,
+                textprops={'color': 'white'})
+        plt.title(f'Wind Directions in {city}', color='white')
+        graph_images['wind_directions'] = save_plot_to_file(f"{city}_wind_directions.png")
+
+        # 4. Custom Trend (e.g., Pressure)
+        plt.figure(figsize=(10, 6))
+        ax = plt.gca()
+        # Assuming a "Pressure" column exists
+        if 'Pressure (hPa)' in filtered_data.columns:
+            plt.plot(filtered_data['Date'], filtered_data['Pressure (hPa)'], marker='o', color='green', linewidth=2)
+            plt.title(f'Pressure Trend in {city} (Last 4 Weeks)')
+            plt.xlabel('Date')
+            plt.ylabel('Pressure (hPa)')
+            set_white_theme(ax)
+            graph_images['pressure_trend'] = save_plot_to_file(f"{city}_pressure_trend.png")
+
+        # Send data and question to OpenAI
+        city_data_json = city_data.to_dict(orient='records')
+        data_prompt = f"Here is the weather data for {city}: {city_data_json}\n\n"
+        full_prompt = f"{data_prompt}Based on the above data, answer the following question: '{user_message}'."
+        final_response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a weather assistant who answers based on provided data."},
+                {"role": "user", "content": full_prompt}
+            ],
+            max_tokens=200,
+            temperature=0.7
+        )
+        answer = final_response['choices'][0]['message']['content'].strip()
+
+        # Return response
+        return jsonify({
+            "response": answer,
+            "graphs": graph_images,
+            "available": True
+        })
 
     except Exception as e:
         logger.error(f"Error: {str(e)}")
