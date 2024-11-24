@@ -209,4 +209,4 @@ def weather_query():
 
     except Exception as e:
         logger.error(f"Error: {str(e)}")
-        return
+        return jsonify({"error": "An error occurred while processing the request.", "details": str(e)}), 500
