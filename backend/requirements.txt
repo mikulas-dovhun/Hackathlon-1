@@ -4,3 +4,5 @@ requests
 python-dotenv
 loguru
 openai==0.27.10
+pandas
+matplotlib

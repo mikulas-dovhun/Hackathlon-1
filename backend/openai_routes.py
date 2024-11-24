@@ -24,6 +24,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 # Set the OpenAI API key
 openai.api_key = OPENAI_API_KEY
 
+# Define Blueprint
 openai_api = Blueprint('openai_api', __name__)
 
 @openai_api.route('/chat', methods=['POST'])
@@ -72,16 +73,27 @@ def chat_with_weather():
             logger.error(f"Error from OpenWeather API: {weather_data.get('message', 'Unknown error')}")
             return jsonify({"error": weather_data.get("message", "Error fetching weather data")}), weather_response.status_code
 
-        # Prepare weather information for OpenAI
-        weather_info = (
-            f"The weather in {city} is currently {weather_data['weather'][0]['description']} "
-            f"with a temperature of {weather_data['main']['temp']}°C, "
-            f"humidity of {weather_data['main']['humidity']}%, "
-            f"and wind speed of {weather_data['wind']['speed']} m/s."
-        )
+        # Standardized weather information output
+        standardized_weather_info = {
+            "city": city,
+            "temperature": weather_data['main']['temp'],
+            "feels_like": weather_data['main']['feels_like'],
+            "humidity": weather_data['main']['humidity'],
+            "wind_speed": weather_data['wind']['speed'],
+            "description": weather_data['weather'][0]['description'].capitalize(),
+        }
 
         # Prepare the final prompt for OpenAI with weather details
-        openai_prompt = f"User asked about the weather: {weather_info}\n\nUser's message: {user_message}"
+        openai_prompt = (
+            f"User asked about the weather in {city}. "
+            f"Here is the weather data: "
+            f"Temperature: {standardized_weather_info['temperature']}°C, "
+            f"Feels like: {standardized_weather_info['feels_like']}°C, "
+            f"Humidity: {standardized_weather_info['humidity']}%, "
+            f"Wind speed: {standardized_weather_info['wind_speed']} m/s, "
+            f"Description: {standardized_weather_info['description']}.\n\n"
+            f"User's message: {user_message}"
+        )
 
         # Send the weather data and user message to OpenAI
         response = openai.ChatCompletion.create(
@@ -98,7 +110,8 @@ def chat_with_weather():
         ai_response = response['choices'][0]['message']['content'].strip()
         logger.info(f"OpenAI response: {ai_response}")
 
-        return jsonify({"response": ai_response, "weather": weather_info})
+        # Include standardized weather info in the response
+        return jsonify({"response": ai_response, "weather": standardized_weather_info})
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Connection error with OpenWeather API: {str(e)}")

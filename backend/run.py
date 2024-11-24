@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 
+
 def install_requirements():
     """
     Ensure all dependencies are installed before starting the app.
@@ -22,7 +23,9 @@ from backend.weather import weather_api
 from backend.forecast import forecast_api
 from backend.search import search_api
 from backend.favorites import favorites_api
-from openai_routes import openai_api  # Import your openai API blueprint
+from openai_routes import openai_api  # Import OpenAI API Blueprint
+from openai_datasets import weatherquery_api
+
 
 # Inicializácia Flask aplikácie
 app = Flask(__name__)
@@ -34,9 +37,7 @@ app.register_blueprint(forecast_api, url_prefix='/api/forecast')
 app.register_blueprint(search_api, url_prefix='/api/search')
 app.register_blueprint(favorites_api, url_prefix='/api/favorites')
 app.register_blueprint(openai_api, url_prefix='/api/openai')
+app.register_blueprint(weatherquery_api, url_prefix='/api/openai')
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-
