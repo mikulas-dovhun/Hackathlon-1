@@ -20,33 +20,33 @@ STATY_FILE = os.path.join(DATASETS_PATH, 'Staty.csv')
 weatherquery_api = Blueprint('weatherquery_api', __name__)
 
 # Helper function to set white elements in graphs
-def set_white_theme(ax):
+def set_white_theme(ax, facecolor='white'):
     """
-    Customize the plot to have white grid, ticks, spines, and outlines on a transparent background.
+    Customize the plot to have white grid, ticks, spines, and outlines.
     """
-    ax.set_facecolor('none')  # Transparent axes background
-    ax.spines['top'].set_color('white')
-    ax.spines['right'].set_color('white')
-    ax.spines['bottom'].set_color('white')
-    ax.spines['left'].set_color('white')
-    ax.tick_params(axis='x', colors='white')
-    ax.tick_params(axis='y', colors='white')
-    ax.yaxis.label.set_color('white')
-    ax.xaxis.label.set_color('white')
-    ax.title.set_color('white')
-    ax.grid(color='white', linestyle='--', linewidth=0.5)  # Dashed white grid lines
+    ax.set_facecolor(facecolor)  # Set the face color of the axes
+    ax.spines['top'].set_color('black')
+    ax.spines['right'].set_color('black')
+    ax.spines['bottom'].set_color('black')
+    ax.spines['left'].set_color('black')
+    ax.tick_params(axis='x', colors='black')
+    ax.tick_params(axis='y', colors='black')
+    ax.yaxis.label.set_color('black')
+    ax.xaxis.label.set_color('black')
+    ax.title.set_color('black')
+    ax.grid(color='gray', linestyle='--', linewidth=0.5)  # Dashed gray grid lines
 
-# Helper function to save plots with transparent background
-def save_plot_to_file(filename):
+# Helper function to save plots with transparent background or white background
+def save_plot_to_file(filename, facecolor='white'):
     """
-    Save the current matplotlib plot to a file with a transparent background.
+    Save the current matplotlib plot to a file with a solid or transparent background.
     """
     output_directory = os.path.join(os.getcwd(), 'static', 'generated_graphs')
     os.makedirs(output_directory, exist_ok=True)
     file_path = os.path.join(output_directory, filename)
     try:
         logger.info(f"Attempting to save plot to {file_path}")
-        plt.savefig(file_path, format='png', bbox_inches='tight', dpi=100, transparent=True)
+        plt.savefig(file_path, format='png', bbox_inches='tight', dpi=100, transparent=False, facecolor=facecolor)
         logger.info(f"Saved plot to {file_path}")
     except Exception as e:
         logger.error(f"Error saving plot {filename}: {e}")
@@ -155,10 +155,10 @@ def weather_query():
         plt.figure(figsize=(10, 6))
         ax = plt.gca()
         plt.plot(filtered_data['Date'], filtered_data['Temperature (°C)'], marker='o', color='blue', linewidth=2)
-        plt.title(f'Temperature Trend in {city} (Last 4 Weeks)', color='white')
-        plt.xlabel('Date', color='white')
-        plt.ylabel('Temperature (°C)', color='white')
-        set_white_theme(ax)
+        plt.title(f'Temperature Trend in {city} (Last 4 Weeks)', color='black')
+        plt.xlabel('Date', color='black')
+        plt.ylabel('Temperature (°C)', color='black')
+        set_white_theme(ax, facecolor='white')
         graph_images['temperature_trend'] = url_for(
             'static', filename=f'generated_graphs/{save_plot_to_file(f"{city}_temperature_trend.png")}', _external=True
         )
@@ -167,10 +167,10 @@ def weather_query():
         plt.figure(figsize=(10, 6))
         ax = plt.gca()
         plt.plot(filtered_data['Date'], filtered_data['Humidity (%)'], marker='o', color='orange', linewidth=2)
-        plt.title(f'Humidity Trend in {city} (Last 4 Weeks)', color='white')
-        plt.xlabel('Date', color='white')
-        plt.ylabel('Humidity (%)', color='white')
-        set_white_theme(ax)
+        plt.title(f'Humidity Trend in {city} (Last 4 Weeks)', color='black')
+        plt.xlabel('Date', color='black')
+        plt.ylabel('Humidity (%)', color='black')
+        set_white_theme(ax, facecolor='white')
         graph_images['humidity_trend'] = url_for(
             'static', filename=f'generated_graphs/{save_plot_to_file(f"{city}_humidity_trend.png")}', _external=True
         )
@@ -179,8 +179,8 @@ def weather_query():
         plt.figure(figsize=(8, 8))
         wind_directions = filtered_data['Wind Direction'].value_counts()
         plt.pie(wind_directions, labels=wind_directions.index, autopct='%1.1f%%', startangle=140,
-                textprops={'color': 'white'})
-        plt.title(f'Wind Directions in {city}', color='white')
+                textprops={'color': 'black'})
+        plt.title(f'Wind Directions in {city}', color='black')
         graph_images['wind_directions'] = url_for(
             'static', filename=f'generated_graphs/{save_plot_to_file(f"{city}_wind_directions.png")}', _external=True
         )
